@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const controller_1 = require("./controller");
+const routerConst = (0, express_1.Router)();
+exports.default = routerConst;
+routerConst.route('/activity-details').get(controller_1.getActivityDetails);
+routerConst.route('/get-workout').get(controller_1.getWorkout);
+routerConst.route('/workout').post(controller_1.createWorkout);
+routerConst.route('/webhook').post(controller_1.webhook);

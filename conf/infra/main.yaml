@@ -1,0 +1,361 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: 'Webhook demo app'
+Globals:
+  Api:
+    Cors:
+      AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+      AllowHeaders: "''Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token''"
+      AllowOrigin: "'*'"
+  Function:
+    Runtime: nodejs16.x
+    Environment:
+      Variables:
+        BUCKET_NAME: !Ref AppBucketNameParameter
+        STACK_DB_NAME: !Ref AppDBStackNameParameter
+        CIPHER_ENABLED: false
+
+Parameters:
+  AppBucketNameParameter:
+    Type: String
+  AppDBStackNameParameter:
+    Type: String
+  DeploymentParameter:
+    Type: String
+    Default: Develop
+Resources:
+
+  APIGateway:
+    Type: "AWS::Serverless::Api"
+    Properties:
+      Name: "WebhookDemo-jcala-APIGateway"
+      StageName: "dev"
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location:
+              Fn::Join:
+                - ""
+                - - "s3://"
+                  - "jcala-bucket/api-spec/api-spec.yaml"
+                  
+      Variables:
+        ApiGateway: !Ref APIGateway
+        region: !Ref AWS::Region
+
+
+
+  AppSyncApi:
+    Type: "AWS::AppSync::GraphQLApi"
+    Properties:
+      AuthenticationType: API_KEY
+      Name: !Sub "${AWS::StackName}-GarminTestAppSync"
+  
+  ApiKey:
+    Type: "AWS::AppSync::ApiKey"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+
+
+  ###########################
+  # Lambda Role section
+  ###########################
+  LambdaIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "garmin-jcala-IAMLambdaRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - 'lambda.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: "webhookdemo-jcala-IAMLambdaRole-IAMPolicy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:*
+                  - sns:*
+                  - dynamodb:GetItem
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:PutItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                  - dynamodb:GetShardIterator
+                  - dynamodb:GetRecords
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AttachNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeInstances
+                  - autoscaling:CompleteLifecycleAction
+                  - cognito-identity:*
+                  - cognito-sync:*
+                  - cognito-idp:*
+                  - lambda:*
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - cloudformation:*
+                Resource: "*"
+
+  ###########################
+  # DynamoDBRole section
+  ###########################
+  AppSyncDynamoDBPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Managed policy to allow AWS AppSync to access the tables created by this template.
+      Path: /appsync/
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:DeleteItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:BatchGetItem
+            - dynamodb:BatchWriteItem
+          Resource:
+            - Fn::Join:
+                - ""
+                - - Fn::ImportValue:
+                      Fn::Join:
+                        - ""
+                        - - Ref: AppDBStackNameParameter
+                          - -ActivitySamplesTableArn
+                  - "*"
+
+            - Fn::Join:
+                - ""
+                - - Fn::ImportValue:
+                      Fn::Join:
+                        - ""
+                        - - Ref: AppDBStackNameParameter
+                          - -ActivitySummaryTableArn
+                  - "*"  
+                  
+  DynamoDBRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "garmin-dynamodb-role"
+      ManagedPolicyArns:
+        - Ref: AppSyncDynamoDBPolicy
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          Effect: Allow
+          Action:
+            - sts:AssumeRole
+          Principal:
+            Service:
+              - appsync.amazonaws.com
+  ###########################
+  # Lambda section
+  ###########################
+  lambdaGetAllActivitiesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: My lambda function activities
+      FunctionName: "webhookdemo-jcala-getactivities"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.getActivities
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 100
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /activities
+            Method: GET
+            RestApiId: !Ref APIGateway
+
+  lambdaGetAllActivitiesDetailsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: My lambda function activities
+      FunctionName: "webhookdemo-jcala-getactivitiesdetails"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.getActivitiesDetails
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 900
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /activitiesDetails
+            Method: GET
+            RestApiId: !Ref APIGateway
+
+  ###########################
+  lambdaDeregFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: testing webhook with aws
+      FunctionName: "webhookdemo-jcala-dereg"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.dereg
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 60
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /dereg
+            Method: POST
+            RestApiId: !Ref APIGateway
+
+  ###########################
+  lambdaPermChangeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: testing webhook with aws
+      FunctionName: "webhookdemo-jcala-permchange"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.permChange
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 60
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /permchange
+            Method: POST
+            RestApiId: !Ref APIGateway
+
+  ###########################
+  lambdaWebhookAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: testing webhook with aws
+      FunctionName: "webhookdemo-jcala-auth"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.webhookAuth
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 60
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /webhookauth
+            Method: POST
+            RestApiId: !Ref APIGateway
+
+  ###########################
+  lambdaActivitiesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: testing webhook with aws
+      FunctionName: "webhookdemo-jcala-activities"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.activities
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 60
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /activities
+            Method: POST
+            RestApiId: !Ref APIGateway
+
+  ###########################
+  lambdaActivitiesDetailsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: testing webhook with aws
+      FunctionName: "webhookdemo-jcala-activitiesDetails"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.activitiesDetails
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 60
+      Events:
+        PostHttp:
+          Type: Api
+          Properties:
+            Path: /activitiesDetails
+            Method: POST
+            RestApiId: !Ref APIGateway
+
+###########################
+  AutomaticActivitiesDetailsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: testing webhook with aws
+      FunctionName: "webhookdemo-jcala-automaticactivitiesDetails"
+      CodeUri: ../../dist
+      Handler: ./lambda_handler.getActivityDetailsFromGarmin
+      Role: !GetAtt LambdaIAMRole.Arn
+      Runtime: nodejs16.x
+      MemorySize: 512 
+      Timeout: 600
+
+  AutomaticActivitiesDetailsTaskSchedule:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: 'Trigger for get activityDetails from garmin'
+      Name: !Sub "${AWS::StackName}-AutomaticActivitiesDetailsScheduledEvent"
+      ScheduleExpression: 'rate(5 minutes)'
+      State: 'ENABLED'
+      Targets: 
+        -
+          Arn: !GetAtt AutomaticActivitiesDetailsFunction.Arn
+          Id: AutomaticActivitiesDetailsTaskSchedule
+
+  AutomaticActivitiesDetailsTaskPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AutomaticActivitiesDetailsFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AutomaticActivitiesDetailsTaskSchedule.Arn
+
+  ActivitySamplesTableDataSource:
+    Type: "AWS::AppSync::DataSource"
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name:
+        Fn::Join:
+          - "_"
+          - Fn::Split:
+              - "-"
+              - !Sub "${AWS::StackName}_activity_samples_table"
+      Description: "Activity Samples Data Source"
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt DynamoDBRole.Arn
+      DynamoDBConfig:
+        TableName: !Join ["", [!Ref AppDBStackNameParameter, "-garmin_activity_samples"]]
+        AwsRegion: !Sub ${AWS::Region}
+
+Outputs:
+  ModuleId:
+    Value: 'webhookdemo'
+  ModuleVersion:
+    Value: '1.0'
+  StackName:
+    Value: !Ref 'AWS::StackName'
+

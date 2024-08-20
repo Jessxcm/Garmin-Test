@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Garmin test serverless application Accounts Domain
+Resources:
+  ActivitySamplesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: ${AWS::StackName}-garmin_activity_samples
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      - AttributeName: activityId
+        AttributeType: N
+      KeySchema:
+      - KeyType: HASH
+        AttributeName: id
+      GlobalSecondaryIndexes:
+      - IndexName: activityId-index
+        Projection:
+          ProjectionType: ALL
+        KeySchema:
+        - KeyType: HASH
+          AttributeName: activityId
+      BillingMode: PAY_PER_REQUEST
+    Metadata:
+      SamResourceId: ActivitySamplesTable
+  ActivitySummaryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: ${AWS::StackName}-garmin_activity_summary
+      AttributeDefinitions:
+      - AttributeName: activityId
+        AttributeType: N
+      KeySchema:
+      - KeyType: HASH
+        AttributeName: activityId
+      BillingMode: PAY_PER_REQUEST
+    Metadata:
+      SamResourceId: ActivitySummaryTable
+  ActivityTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: ${AWS::StackName}-garmin_activity
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      - AttributeName: activityId
+        AttributeType: N
+      KeySchema:
+      - KeyType: HASH
+        AttributeName: id
+      GlobalSecondaryIndexes:
+      - IndexName: activityId-index
+        Projection:
+          ProjectionType: ALL
+        KeySchema:
+        - KeyType: HASH
+          AttributeName: activityId
+      BillingMode: PAY_PER_REQUEST
+    Metadata:
+      SamResourceId: ActivityTable
+Outputs:
+  ActivitySamplesTableArn:
+    Description: Activity Samples Table Arn
+    Value:
+      Fn::GetAtt:
+      - ActivitySamplesTable
+      - Arn
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-ActivitySamplesTableArn
+  ActivitySummaryTableArn:
+    Description: Activity Summary Table Arn
+    Value:
+      Fn::GetAtt:
+      - ActivitySummaryTable
+      - Arn
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-ActivitySummaryTableArn
+  ActivityTableArn:
+    Description: Activity Table Arn
+    Value:
+      Fn::GetAtt:
+      - ActivityTable
+      - Arn
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-ActivityTableArn

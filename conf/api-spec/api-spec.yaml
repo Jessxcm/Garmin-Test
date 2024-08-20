@@ -1,0 +1,237 @@
+openapi: 3.0.0
+info:
+  description: |
+    webhookDemo-jcala API
+  version: 1.0.1-aws
+  title: webhookDemo API
+  license:
+    name: Apache 2.0
+    url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+
+paths:
+
+  /activities:
+    post:
+      tags:
+        - Process provider request.
+      description: is a webhooker test.
+      operationId: getActivities
+      requestBody:
+        description: Info to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: unexpected error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaActivitiesFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    get:
+      tags:
+        - Process provider request.
+      summary: Started TradeIn process
+      operationId: postDocumentRequest
+      responses:
+        '200':
+          description: Succesful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: Error in response
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaGetAllActivitiesFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+ 
+  /dereg:
+    post:
+      tags:
+        - Process provider request.
+      description: is a webhooker test.
+      operationId: addInfo
+      requestBody:
+        description: Info to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: unexpected error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaDeregFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
+  /permchange:
+    post:
+      tags:
+        - Process provider request.
+      description: is a webhooker test.
+      operationId: getPermissions
+      requestBody:
+        description: Info to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: unexpected error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaPermChangeFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
+  /webhookauth:
+    post:
+      tags:
+        - Process provider request.
+      description: is a webhooker test.
+      operationId: getAuthVerifier
+      requestBody:
+        description: Info to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: unexpected error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaWebhookAuthFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
+  /activitiesDetails:
+    post:
+      tags:
+        - Process provider request.
+      description: is a webhooker test.
+      operationId: getActivitiesDetails
+      requestBody:
+        description: Info to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '200':
+          description: user response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: unexpected error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaActivitiesDetailsFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    get:
+      tags:
+        - Process provider request.
+      summary: Started TradeIn process
+      operationId: postDocumentRequest
+      responses:
+        '200':
+          description: Succesful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        default:
+          description: Error in response
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaGetAllActivitiesDetailsFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+ 
+components:
+  schemas:    
+    UsersResponse:
+      type: array
+      description: Request sended by our provider.
+      items: 
+        allOf: 
+          - $ref: '#/components/schemas/User'
+      
+    User:
+      type: object
+      description: Request sended by our provider.
+      properties:
+        id: 
+          type: string
+          example: 1
+        name: 
+          type: string
+          example: diana
+        lastname: 
+          type: string
+          example: salas
+        age: 
+          type: integer
+          example: 24
+
+    NewUser:
+      type: object
+      description: Request sended by our provider.
+      properties:
+        name: 
+          type: string
+          example: diana
+        lastname: 
+          type: string
+          example: salas
+        age: 
+          type: integer
+          example: 24
+  

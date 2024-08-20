@@ -1,0 +1,41 @@
+{
+  "name": "garmin-test-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "createS3Bucket": "aws s3api create-bucket --bucket $BUCKET_NAME --region $REGION",
+    "uploadAPISpec": "aws s3 cp conf/api-spec/api-spec.yaml s3://$BUCKET_NAME/api-spec/api-spec.yaml",
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "start": "npm run build && nodemon src/index.ts",
+    "postbuild": "(cp package.json dist/package.json && cd dist && npm install --only=production)",
+    "pack": "npm run uploadAPISpec && npm run-script build && cd conf/infra && sam package --s3-bucket $BUCKET_NAME --s3-prefix package --template-file main.yaml --output-template-file main-pack.yaml",
+    "depl": "sam deploy --template-file  conf/infra/main-pack.yaml --s3-bucket $BUCKET_NAME  --stack-name $APP_STACK_NAME --region $REGION --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset --parameter-overrides AppBucketNameParameter=$BUCKET_NAME AppDBStackNameParameter=$APPDB_STACK_NAME DeploymentParameter=$STAGE_NAME",
+    "deploy": "npm run-script pack && npm run-script depl",
+    "packDB": "cd conf/database/ && npm run-script build && sam package --s3-bucket $BUCKET_NAME --template-file database.yaml --output-template-file database-pack.yaml",
+    "deplDB": "cd conf/database/ && sam deploy --template-file database-pack.yaml --stack-name $APPDB_STACK_NAME --region us-east-1 --capabilities CAPABILITY_NAMED_IAM"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.1414.0",
+    "axios": "^1.4.0",
+    "express": "^4.18.2",
+    "mongoose": "^7.4.0",
+    "oauth-1.0a": "^2.2.6",
+    "oauth-signature": "^1.5.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.119",
+    "@types/express": "^4.17.17",
+    "@types/oauth-signature": "^1.5.0",
+    "@types/uuid": "^9.0.2",
+    "nodemon": "^2.0.22",
+    "rimraf": "^5.0.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6"
+  }
+}
